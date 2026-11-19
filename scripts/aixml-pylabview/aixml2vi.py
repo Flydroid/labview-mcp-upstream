@@ -5813,7 +5813,15 @@ class Composer:
             del e.attrib["_t"]
         workers = getattr(self, "parallel_loops", {}).get(el.get("uid"))
         if workers is not None:
-            self._parallel_for(el, loop, inner, lmax_inner, workers)
+            p_outer = self._parallel_for(el, loop, inner, lmax_inner, workers)
+            # the P input, `parin="<net>"` like `maxin` for N: the outer parForWorkers terminal is
+            # one more end of that net, on the loop's own (parent) diagram. NI's format has no
+            # attribute for it; unwired, LabVIEW uses the CPU count capped at the instances
+            self.ends[(el.get("uid"), "P")] = (p_outer, parent)
+        elif el.get("parin"):
+            raise Unsupported("For Loop %s: parin wires the P terminal of a PARALLEL loop - enable "
+                              "iteration parallelism with <?lvmcp parallel uid=\"%s\" workers=\"N\"?>"
+                              % (el.get("uid"), el.get("uid")))
         parent.nodes.append(loop)
         parent.z.insert(0, ET.Element("SL__arrayElement", {"uid": loop.get("uid")}))
         parent.placed.append((loop, el))
@@ -5834,8 +5842,9 @@ class Composer:
 
     def _parallel_for(self, el, loop, inner, lmax_inner, workers):
         """`<?lvmcp parallel uid=".." workers="N"?>` after </VI> - OUR extension, NI's AIXML has no
-        spelling for it and its export drops it - enables loop iteration parallelism with N generated instances
-        and the P terminal left unwired (LabVIEW then uses the CPU count, capped at N). The shape
+        spelling for it and its export drops it - enables loop iteration parallelism with N generated instances.
+        The P terminal is wired by `parin="<net>"` on the loop; left unwired, LabVIEW uses the CPU
+        count, capped at N. Returns the uid of the OUTER P terminal. The shape
         is NI's own, read off its Parallel For Loop examples (2026-10-27): a `parForWorkers` DCO
         on the loop's border whose termList is [inner, outer], the inner terminal on the loop
         diagram's sRN (objFlags 0x20000), `<ParForWorkers uid=DCO/>` after the
@@ -5876,7 +5885,9 @@ class Composer:
             raise Unsupported("For Loop shell has no ParFor trailer")
         loop.insert(trailer.index(cond) + 1, ET.Element("ParForWorkers", {"uid": str(d_p)}))
         loop.find("ParForNumStaticWorkers").text = "%02X" % workers
-        self.report.append("For Loop %s: iteration parallelism, %d instances" % (el.get("uid"), workers))
+        self.report.append("For Loop %s: iteration parallelism, %d instances%s"
+                           % (el.get("uid"), workers, ", P wired" if el.get("parin") else ""))
+        return str(t_out)
 
     def _library_qualified(self, res, callee):
         """A callee found by its bare name that is a LIBRARY MEMBER - its own LIBN says so - is
@@ -10276,6 +10287,8 @@ class Composer:
             if el.get("maxout"):
                 srcs.append((el.get("maxout"), (uid, "maxout")))
             sinks = [(el.get("maxin"), (uid, "N"))] if el.get("maxin") else []
+            if el.get("parin"):
+                sinks.append((el.get("parin"), (uid, "P")))
             return srcs, sinks
         return [], []
 

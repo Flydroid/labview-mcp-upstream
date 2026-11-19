@@ -290,6 +290,31 @@ public sealed class AixmlCheckTests
             && x.Severity == AixmlCheck.Severity.Error);
     }
 
+    private const string ParallelLoopPWired = """
+        <VI _name="Probe.vi" description="x">
+          <Constant _name="n" type="int32" value="10" uid="4300" uid_parent="root" outputs="value:4300.value"/>
+          <Constant _name="p" type="int32" value="4" uid="4301" uid_parent="root" outputs="value:4301.value"/>
+          <Structure _name="For Loop" count="" maxin="4300.value" maxout="" parin="4301.value" uid="4310" uid_parent="root"/>
+        </VI>
+        """;
+
+    /// <summary>
+    /// parin wires a parallel For Loop's P terminal on pylabview; NI's closed schema has no such
+    /// attribute, so a warning that names the backend - and an error on any other element.
+    /// </summary>
+    [Fact]
+    public void AWiredParallelLoopPIsAPylabviewOnlyWarning()
+    {
+        var findings = AixmlCheck.Check(ParallelLoopPWired);
+        var f = Assert.Single(findings, x => x.Code == "parallelLoopPPylabviewOnly");
+        Assert.Equal(AixmlCheck.Severity.Warning, f.Severity);
+        Assert.DoesNotContain(findings, x => x.Code == "parinNotOnForLoop");
+
+        var misplaced = AixmlCheck.Check(ParallelLoopPWired.Replace("For Loop", "While Loop"));
+        Assert.Contains(misplaced, x => x.Code == "parinNotOnForLoop"
+            && x.Severity == AixmlCheck.Severity.Error);
+    }
+
     private const string TimestampWithAValue = """
         <VI _name="Probe.vi">
           <Constant _name="t" type="timestamp" value="3800000000" uid="4200" uid_parent="root" outputs="value:4200.value"/>

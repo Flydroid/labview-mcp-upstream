@@ -88,6 +88,8 @@ BARE_NET_ATTRS = {
     ("Structure", "selectin"): "consume",
     # An Event Structure's TIMEOUT input - our attribute, composed on pylabview only (2026-11-19)
     ("Structure", "timeoutin"): "consume",
+    # A parallel For Loop's P input - our attribute, composed on pylabview only
+    ("Structure", "parin"): "consume",
     ("CaseFrame", "selectout"): "produce",
     # A CONDITIONAL output tunnel READS its condition net - `cond="4414.hit"` on an indexing
     # Out tunnel. Without this row an Equal? feeding only a cond was reported net-unconsumed,

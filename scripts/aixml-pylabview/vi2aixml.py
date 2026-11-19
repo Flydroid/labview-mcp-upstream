@@ -1119,7 +1119,7 @@ INT_MIN, INT_MAX = -2 ** 31, 2 ** 31 - 1
 # internal until 2026-11-06)
 # the LVSR Execution attributes carried after </VI> (`exec`) and set back by the composer
 EXEC_KEPT = ("IsReentrant", "PooledReentrancy", "IsSubroutine", "Priority", "PrefExecSyst", "SaveParallel")
-INTERNAL_TERMS = {"#cond", "#count", "#maxin", "#maxout", "#selectin", "#selectout", "#timeoutin"}
+INTERNAL_TERMS = {"#cond", "#count", "#maxin", "#maxout", "#selectin", "#selectout", "#timeoutin", "#parin"}
 IGNORED, MISSING = object(), object()     # term_owner sentinels: an end AIXML has no terminal for
 
 
@@ -2824,6 +2824,11 @@ class Reader:
                 self.term_owner[term.get("uid")] = IGNORED
                 self.event_timeouts = getattr(self, "event_timeouts", [])
                 self.event_timeouts.append((term.get("uid"), node.get("uid"), "Timed Loop"))
+            elif dc == "parForWorkers":
+                # the P input of a parallel loop: NI's format has no attribute for it and NI's
+                # export drops the wire; written as `parin="<net>"`, like `maxin` for N, which the
+                # composer wires. The inner P terminal is left as before
+                self.term_owner[term.get("uid")] = (el, "#parin", True)
             elif dc == "lMax":
                 self.term_owner[term.get("uid")] = (el, "#maxin", True)
                 for t in inner_terms.get(d.get("uid"), []):
@@ -4526,6 +4531,8 @@ class Reader:
                 if sink:
                     if term == "#maxin":
                         el.set("maxin", net)
+                    elif term == "#parin":
+                        el.set("parin", net)
                     elif term == "#selectin":
                         el.set("selectin", net)
                     elif term == "#timeoutin":
@@ -4559,6 +4566,8 @@ class Reader:
                     el.set("timeoutin", net)
                 elif term == "#maxin":
                     el.set("maxin", net)
+                elif term == "#parin":
+                    el.set("parin", net)
                 elif term == "#cond":
                     el.set("cond", net)
                 elif not term.startswith("#"):

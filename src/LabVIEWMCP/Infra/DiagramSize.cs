@@ -129,8 +129,8 @@ internal static class DiagramSize
                     Add(_producers, net, element);
                 foreach (var net in Nets((string?)element.Attribute("inputs")))
                     Add(_consumers, net, element);
-                // a Case selector, an Event Structure's timeout and a loop's count read a net too, without an `inputs` list
-                foreach (var key in new[] { "selectin", "timeoutin", "count", "maxin" })
+                // a Case selector, an Event Structure's timeout, a loop's count and a parallel loop's P read a net too, without an `inputs` list
+                foreach (var key in new[] { "selectin", "timeoutin", "count", "maxin", "parin" })
                     if ((string?)element.Attribute(key) is { Length: > 0 } net && net.Contains('.'))
                         Add(_consumers, net, element);
             }

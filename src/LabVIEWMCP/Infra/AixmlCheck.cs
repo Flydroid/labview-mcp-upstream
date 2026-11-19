@@ -143,6 +143,7 @@ internal static class AixmlCheck
         CheckTimestampValues(root, findings);
         CheckNonFiniteConstants(root, findings);
         CheckEventTimeoutInput(root, findings);
+        CheckParallelLoopPInput(root, findings);
         CheckCommentLength(root, findings);
         CheckControlReadBeforeWait(root, findings);
         CheckWebBrowserReference(root, findings);
@@ -958,6 +959,40 @@ internal static class AixmlCheck
                 + "composes it; NI's format has no attribute for that terminal, so on grpc the whole "
                 + "document is refused (Error -2628). Generate this VI on pylabview, or on grpc time "
                 + "out through a Dequeue Element or Wait on Notification timeout instead.",
+                (string?)element.Attribute("uid")));
+        }
+    }
+
+    /// <summary>
+    /// <c>parin="&lt;net&gt;"</c> on a For Loop wires the P terminal of a PARALLEL loop (iteration
+    /// parallelism enabled by <c>&lt;?lvmcp parallel uid=".." workers="N"?&gt;</c> after
+    /// <c>&lt;/VI&gt;</c>), like <c>maxin</c> wires N. It is OUR attribute: NI's format has none for
+    /// that terminal, so NI's ValidateAIXML refuses the document (closed schema) while the pylabview
+    /// composer wires it. A WARNING on a For Loop; an ERROR anywhere else, where no backend reads it.
+    /// </summary>
+    private static void CheckParallelLoopPInput(XElement root, List<Finding> findings)
+    {
+        foreach (var element in root.DescendantsAndSelf())
+        {
+            if ((string?)element.Attribute("parin") is not { } net) continue;
+            var isFor = element.Name.LocalName == "Structure"
+                && (string?)element.Attribute("_name") == "For Loop";
+            if (!isFor)
+            {
+                findings.Add(new Finding(Severity.Error, "parinNotOnForLoop",
+                    $"parin=\"{net}\" sits on a {element.Name.LocalName} "
+                    + $"\"{element.Attribute("_name")?.Value}\"; only a parallel For Loop has a P "
+                    + "terminal, and no backend reads the attribute anywhere else.",
+                    (string?)element.Attribute("uid")));
+                continue;
+            }
+            if (net.Length == 0) continue;
+            findings.Add(new Finding(Severity.Warning, "parallelLoopPPylabviewOnly",
+                $"The For Loop's P terminal is wired (parin=\"{net}\"). The pylabview backend composes "
+                + "it when the loop is made parallel with <?lvmcp parallel uid=\".\" workers=\"N\"?> "
+                + "after </VI> (it refuses parin on a loop that is not); NI's format has no attribute "
+                + "for that terminal, so on grpc the whole document is refused. Generate this VI on "
+                + "pylabview, or leave P unwired.",
                 (string?)element.Attribute("uid")));
         }
     }

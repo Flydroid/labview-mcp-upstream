@@ -1915,6 +1915,11 @@ two VIs to NI's converter and hand-patch a third. All four are closed on `pylabv
   `<ParForWorkers uid=…/>` and `ParForNumStaticWorkers`. The reader writes the instruction back.
   Measured as an A/B on the reader's piece parser, everything else equal: 2.48 s without, 0.97 s
   with 16 instances, identical data.
+  The P terminal (number of instances to use at run time) is wired by `parin="<net>"` on the For
+  Loop, spelled like `maxin` for N: the outer `parForWorkers` terminal becomes one more end of that
+  net. The composer refuses `parin` on a loop without the `parallel` instruction; the reader writes
+  `parin` back where P is wired. Like `timeoutin`, NI's closed schema has no such attribute, so it
+  is pylabview only (`lvai_check_aixml` warns `parallelLoopPPylabviewOnly`).
 
 **A NaN or infinity constant is refused by NI's validator** - `nan`, `NAN` and `Inf` on a double
 `<Constant>` all answer `Unrecognized or unsupported attribute set`, although NI's OWN export writes

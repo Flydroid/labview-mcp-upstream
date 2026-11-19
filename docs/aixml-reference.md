@@ -865,6 +865,24 @@ value="[0,0,0,0,0]"/>`, or a `While Loop` with an int32 shift register, `Increme
 against `n-1` — both work and both still validate, but neither is necessary and each costs three to
 five extra elements on the diagram.
 
+**A parallel loop's P terminal: `parin="<net>"` - pylabview backend only.** Iteration parallelism
+is the instruction `<?lvmcp parallel uid="<For Loop uid>" workers="N"?>` after `</VI>`
+(`docs/aixml-backends.md`); its P input - how many of the N generated instances to use at run
+time - is wired like `maxin`, one bare net read on the loop's OWN (parent) diagram. Left unwired,
+LabVIEW uses the CPU count capped at N. The composer refuses `parin` on a loop that is not made
+parallel; NI's format has no such attribute, so on grpc the document is refused
+(`lvai_check_aixml` warns `parallelLoopPPylabviewOnly`).
+
+```xml
+<Constant _name="P" type="int32" value="4" uid="4302" uid_parent="root" outputs="value:4302.value"/>
+<Structure _name="For Loop" count="" maxin="4301.value" maxout="" parin="4302.value" uid="4310" uid_parent="root">
+  ...
+</Structure>
+...
+</VI>
+<?lvmcp parallel uid="4310" workers="8"?>
+```
+
 **Auto-indexing is `mode="index"` on the tunnel** — the attribute the rest of this section was
 missing. A tunnel *without* `mode` passes its whole value through unchanged; with it, the loop
 indexes one element per iteration and supplies `N`.
